@@ -3,6 +3,7 @@ import os
 from kaggle.api.kaggle_api_extended import KaggleApi
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.model_selection import train_test_split
 
 router = APIRouter()
 
@@ -61,7 +62,6 @@ async def process_iris_dataset():
         if df.isnull().sum().any():
             df.fillna(df.mean(), inplace=True)
 
-        from sklearn.preprocessing import LabelEncoder, StandardScaler
         label_encoder = LabelEncoder()
         df['Species'] = label_encoder.fit_transform(df['Species'])
 
@@ -79,3 +79,34 @@ async def process_iris_dataset():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing dataset: {str(e)}")
+    
+
+@router.get("/split-dataset", tags=["Data"])
+async def split_iris_dataset(test_size: float = 0.2):
+    """
+    Split the Iris dataset into training and testing sets.
+    """
+    dataset_path = os.path.join("src", "data", "processed_iris.csv")
+    
+    if not os.path.exists(dataset_path):
+        raise HTTPException(status_code=404, detail="Processed dataset file not found. Please process the dataset first.")
+
+    try:
+     
+        df = pd.read_csv(dataset_path)
+
+        X = df.drop(columns=["Species"])
+        y = df["Species"]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+
+        train_data = pd.concat([X_train, y_train], axis=1).to_dict(orient="records")
+        test_data = pd.concat([X_test, y_test], axis=1).to_dict(orient="records")
+
+        return {
+            "message": "Dataset split successfully.",
+            "train_data": train_data,
+            "test_data": test_data,
+            "test_size": test_size,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error splitting dataset: {str(e)}")
